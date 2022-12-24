@@ -1,5 +1,7 @@
 from pprint import pprint
 import requests
+import vk_api
+
 
 with open("token_app.txt", "r") as file:
     token = file.read().strip()
@@ -16,36 +18,84 @@ class Vkinder:
             "v": self.api_version,
         }
 
-    def get_params(self, user_ids, fields: str):  #Функция для получения параметров пользователя бота для подбора подходящей пары
+    def get_params(self, user_ids, fields: str = "bdate, city, sex, relation"):
+        #Р¤СѓРЅРєС†РёСЏ РґР»СЏ РїРѕР»СѓС‡РµРЅРёСЏ РїР°СЂР°РјРµС‚СЂРѕРІ РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ Р±РѕС‚Р° РґР»СЏ РїРѕРґР±РѕСЂР° РїРѕРґС…РѕРґСЏС‰РµР№ РїР°СЂС‹
         params = {
             "user_ids": user_ids,
             "fields": fields
         }
-        return requests.get(f"{self.base_url}/method/users.get",
+        try:
+            response = requests.get(f"{self.base_url}/method/users.get",
                             params={**params, **self.general_params()}).json()
+        except vk_api.exceptions.ApiError:
+            pass
+        except KeyError:
+            pass
+        except:
+            print("Error")
+        else:
+            if response is not None:
+                return response["response"][0]
+            else:
+                print("get_params() function has returned None object")
+                pass
 
-    def search_people(self, age_from, age_to, sex, city, status, sorting: int = 0, count: int = 1000): #Функция для получения списка людей по подходящим параметрам
+
+    def search_people(self, age_from, age_to, sex, city, status, offset, sorting: int = 0, count: int = 50):
+        #Р¤СѓРЅРєС†РёСЏ РґР»СЏ РїРѕР»СѓС‡РµРЅРёСЏ СЃРїРёСЃРєР° Р»СЋРґРµР№ РїРѕ РїРѕРґС…РѕРґСЏС‰РёРј РїР°СЂР°РјРµС‚СЂР°Рј
         params = {
             "age_from": age_from,
             "age_to": age_to,
             "sex": sex,
             "city": city,
             "status": status,
+            "offset": offset,
             "sort": sorting,
-            "count": count,
+            "count": count
         }
-        return requests.get(f"{self.base_url}/method/users.search",
+        try:
+            response = requests.get(f"{self.base_url}/method/users.search",
                             params={**self.general_params(), **params}).json()["response"]["items"]
+        except vk_api.exceptions.ApiError:
+            pass
+        except KeyError:
+            pass
+        except:
+            print("Error")
+        else:
+            if response is not None:
+                return response
+            else:
+                print("search_people() function has returned None object")
+                pass
 
-    def get_photos(self, owner_id, album_id = "profile", photo_sizes = 1, extended = 1): #Функция для получения списка фотографий профиля и id выбранного пользователя
+    def get_photos(self, owner_id, album_id = "profile", photo_sizes = 1, extended = 1):
+        #Р¤СѓРЅРєС†РёСЏ РґР»СЏ РїРѕР»СѓС‡РµРЅРёСЏ СЃРїРёСЃРєР° С„РѕС‚РѕРіСЂР°С„РёР№ РїСЂРѕС„РёР»СЏ Рё id РІС‹Р±СЂР°РЅРЅРѕРіРѕ РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ
         params = {
             "owner_id": owner_id,
             "album_id": album_id,
             "photo_sizes": photo_sizes,
             "extended": extended
         }
-        return requests.get(f"{self.base_url}/method/photos.get",
+        try:
+            response = requests.get(f"{self.base_url}/method/photos.get",
                             params={**self.general_params(), **params}).json()["response"]["items"], owner_id
+        except vk_api.exceptions.ApiError:
+            pass
+        except KeyError:
+            pass
+        except:
+            print("Error")
+        else:
+            if response is not None:
+                return response
+            else:
+                print("get_photos() function has returned None object")
+                pass
 
 
 vk_client = Vkinder(token=token, api_version="5.131")
+
+
+
+
