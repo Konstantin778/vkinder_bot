@@ -82,7 +82,7 @@ class Bot:
     def get_offered_people(self):
         # функция получает данные пользователя из переменной got_user и на их основании ищет подходящие пары
         # и при каждом вызове возвращает список из 50 новых анкет
-        if self.got_user[0] is not None:
+        if self.got_user[0] is not None: # проверка наличия параметра user
             birth_year = int(self.got_user[0]["bdate"][-4:])
             current_year = date.today().year
             age = current_year - birth_year
@@ -111,38 +111,43 @@ class Bot:
         # функция обрабатывает данные, полученные из функции get_offered_people() и возвращает список
         # кортежей, каждый из которых состоит из id и имени с фамилией найденного человека. Найденные пользователи,
         # с закрытой страницей профиля на попадают в данный список.
-        people_ids = []
-        for people in self.get_offered_people():
-            if people['is_closed'] == False:
-                people_info = (people["id"], f'{people["first_name"]} {people["last_name"]}')
-                if people_info is not None:
-                    people_ids.append(people_info)
-        return people_ids
+        offered = self.get_offered_people()
+        if offered:  # проверка наличия параметров, возвращаемых функцией self.get_offered_people()
+            people_ids = []
+            for people in self.get_offered_people():
+                if people['is_closed'] == False:
+                    people_info = (people["id"], f'{people["first_name"]} {people["last_name"]}')
+                    if people_info is not None:
+                        people_ids.append(people_info)
+            return people_ids
+
 
     def get_whole_info(self):
         # функция обрабатывает данные, полученные из функции get_people_ids() и осуществляет поиск трёх
         # самых популярных фотографий профиля у каждого из найденных людей. Возвращает список кортежей,
         # каждый из которых состоит из имени-фамилии найденного человека, ссылке на его/её страницу vk.com
         # и список из трёх самых популярных фотографий профиля, записанных в формате для передачи в метод messages.send
-        whole_info = []
-        if len(self.get_people_ids()) > 0:
-            for couple in self.get_people_ids():
-                id_couple = f'https://vk.com/id{vk_client.get_photos(owner_id=str(couple[0]))[1]}'
-                all_photos = vk_client.get_photos(owner_id=str(couple[0]))[0]
-                if id_couple is None or len(all_photos) < 3:
-                    continue
-                photos_ids = {}
-                for photo in all_photos:
-                    photos_ids[(photo["id"])] = photo["comments"]["count"] + photo["likes"][
-                        "count"] + photo["likes"]["user_likes"]
-                sorted_ids = (sorted(photos_ids.items(), key=lambda x: x[1]))[-3:]
-                couple_name = couple[1]
-                only_ids = []
-                for id in sorted_ids:
-                    only_ids.append(f'photo{id_couple[17:]}_{id[0]}')
-                info = (couple_name, id_couple, only_ids)
-                whole_info.append(info)
-            return whole_info
+        people_ids = self.get_people_ids()
+        if people_ids: # проверка наличия параметров, возвращаемых функцией self.get_people_ids()
+            whole_info = []
+            if len(people_ids) > 0:
+                for couple in people_ids:
+                    id_couple = f'https://vk.com/id{vk_client.get_photos(owner_id=str(couple[0]))[1]}'
+                    all_photos = vk_client.get_photos(owner_id=str(couple[0]))[0]
+                    if id_couple is None or len(all_photos) < 3:
+                        continue
+                    photos_ids = {}
+                    for photo in all_photos:
+                        photos_ids[(photo["id"])] = photo["comments"]["count"] + photo["likes"][
+                            "count"] + photo["likes"]["user_likes"]
+                    sorted_ids = (sorted(photos_ids.items(), key=lambda x: x[1]))[-3:]
+                    couple_name = couple[1]
+                    only_ids = []
+                    for id in sorted_ids:
+                        only_ids.append(f'photo{id_couple[17:]}_{id[0]}')
+                    info = (couple_name, id_couple, only_ids)
+                    whole_info.append(info)
+                return whole_info
 
     def run(self):
         # функция запускается после определения пользователя, активирует вышеописанные функции.
@@ -164,11 +169,12 @@ class Bot:
         # новых профилей и список перезаписывается
         i = 0
         for event in longpoll.listen():
-            if i < len(self.get_whole_info()):
+            got_info = self.get_whole_info()
+            if i < len(got_info) or got_info is not None:
                 if event.type == VkEventType.MESSAGE_NEW and event.to_me and event.text:
                     request = event.text
                     if request.lower() == "показ" or request.lower() == "show":
-                        couple = self.get_whole_info()[i]
+                        couple = got_info[i]
                         if couple not in self.shown_couple and couple is not None:
                             self.shown_couple.append(couple)
                             try:
@@ -177,7 +183,7 @@ class Bot:
                                 user_table_name = f'id{event.user_id}'
                                 couple_id = f'{couple[1][15:]}'
                                 i += 1
-                                if i != len(self.get_whole_info()) - 1:
+                                if i != len(got_info) - 1:
                                     self.write_msg(event.user_id, 'Для просмотра результатов введите "показ" ')
                                 engine = sq.create_engine(DSN)
                                 Session = sessionmaker(bind=engine)
