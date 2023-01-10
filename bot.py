@@ -1,17 +1,18 @@
-import sqlalchemy as sq
-from sqlalchemy.orm import declarative_base, sessionmaker
-import psycopg2
-from pprint import pprint
+# import sqlalchemy as sq
+# from sqlalchemy.orm import declarative_base, sessionmaker
+# import psycopg2
+# from pprint import pprint
 import datetime
 from datetime import date
 import vk_api
 from vk_api.longpoll import VkLongPoll, VkEventType
 from vk_api.utils import get_random_id
 from vk_api.keyboard import VkKeyboard, VkKeyboardColor
-import random
+# import random
 from random import randrange
 from vkinder import *
 from database import *
+
 keyboard = VkKeyboard()
 keyboard.add_button("старт", color=VkKeyboardColor.SECONDARY)
 keyboard.add_line()
@@ -26,6 +27,7 @@ vk_session = vk_api.VkApi(token=bot_token)
 longpoll = VkLongPoll(vk_session)
 vk = vk_session.get_api()
 
+
 class Bot:
     def __init__(self, bot_token: str):
         self.bot_token = bot_token
@@ -34,9 +36,10 @@ class Bot:
     got_user = []
     shown_couple = []
 
-    def write_msg(self, user_id, message, attachment=None, keyboard = None):
+    def write_msg(self, user_id, message, attachment=None, keyboard=None):
         vk_session.method("messages.send", {"user_id": user_id, "message": message,
-                                            "attachment": attachment, "keyboard": keyboard, "random_id": get_random_id()})
+                                            "attachment": attachment, "keyboard": keyboard,
+                                            "random_id": get_random_id()})
 
     def get_user(self):
         # функция получает параметры пользователя бота и при каждом новом вызове перезаписывает
@@ -55,12 +58,12 @@ class Bot:
                             continue
                         if "bdate" not in user.keys():
                             self.write_msg(user_id, f'Недостаточно данных для поиска пары.'
-                                               f' Укажите дату рождения в настройках профиля\
+                                                    f' Укажите дату рождения в настройках профиля\
                                                             и разрешите её показ')
                             continue
                         if "city" not in user.keys():
                             self.write_msg(user_id,
-                                      f'Недостаточно данных для поиска пары.\
+                                           f'Недостаточно данных для поиска пары.\
                                          Укажите в профиле город своего проживания')
                             continue
                         try:
@@ -82,7 +85,7 @@ class Bot:
     def get_offered_people(self):
         # функция получает данные пользователя из переменной got_user и на их основании ищет подходящие пары
         # и при каждом вызове возвращает список из 50 новых анкет
-        if self.got_user[0] is not None: # проверка наличия параметра user
+        if self.got_user[0] is not None:  # проверка наличия параметра user
             birth_year = int(self.got_user[0]["bdate"][-4:])
             current_year = date.today().year
             age = current_year - birth_year
@@ -121,20 +124,20 @@ class Bot:
                         people_ids.append(people_info)
             return people_ids
 
-
     def get_whole_info(self):
         # функция обрабатывает данные, полученные из функции get_people_ids() и осуществляет поиск трёх
         # самых популярных фотографий профиля у каждого из найденных людей. Возвращает список кортежей,
         # каждый из которых состоит из имени-фамилии найденного человека, ссылке на его/её страницу vk.com
         # и список из трёх самых популярных фотографий профиля, записанных в формате для передачи в метод messages.send
         people_ids = self.get_people_ids()
-        if people_ids: # проверка наличия параметров, возвращаемых функцией self.get_people_ids()
+        if people_ids:  # проверка наличия параметров, возвращаемых функцией self.get_people_ids()
             whole_info = []
             if len(people_ids) > 0:
                 for couple in people_ids:
-                    id_couple = f'https://vk.com/id{vk_client.get_photos(owner_id=str(couple[0]))[1]}'
-                    all_photos = vk_client.get_photos(owner_id=str(couple[0]))[0]
-                    if id_couple is None or len(all_photos) < 3:
+                    owner_id = str(couple[0])
+                    id_couple = f'https://vk.com/id{owner_id}'
+                    all_photos = vk_client.get_photos(owner_id=owner_id)
+                    if len(all_photos) < 3:
                         continue
                     photos_ids = {}
                     for photo in all_photos:
@@ -168,8 +171,8 @@ class Bot:
         # записанные в список. После завершения списка запускается функция run(), происходит поиск
         # новых профилей и список перезаписывается
         i = 0
+        got_info = self.get_whole_info()
         for event in longpoll.listen():
-            got_info = self.get_whole_info()
             if i < len(got_info) or got_info is not None:
                 if event.type == VkEventType.MESSAGE_NEW and event.to_me and event.text:
                     request = event.text
@@ -179,12 +182,12 @@ class Bot:
                             self.shown_couple.append(couple)
                             try:
                                 self.write_msg(event.user_id, message=f'Ваша пара - {couple[0]}, {couple[1]}',
-                                          attachment=f'{couple[2][0]},{couple[2][1]},{couple[2][2]}')
+                                               attachment=f'{couple[2][0]},{couple[2][1]},{couple[2][2]}')
                                 user_table_name = f'id{event.user_id}'
                                 couple_id = f'{couple[1][15:]}'
-                                i += 1
                                 if i != len(got_info) - 1:
                                     self.write_msg(event.user_id, 'Для просмотра результатов введите "показ" ')
+                                i += 1
                                 engine = sq.create_engine(DSN)
                                 Session = sessionmaker(bind=engine)
                                 session = Session()
@@ -197,7 +200,8 @@ class Bot:
                                 except:
                                     pass
                                 session.close()
-
+                                if i == len(got_info):
+                                    break
                             except:
                                 continue
                         else:
@@ -207,7 +211,9 @@ class Bot:
         self.offset += 50
         self.write_msg(event.user_id, 'для продолжения поиска введите "поиск" ')
 
+
 vk_bot = Bot(bot_token=bot_token)
+
 
 def run_bot():
     vk_bot.get_user()
@@ -215,5 +221,5 @@ def run_bot():
         vk_bot.run()
         vk_bot.run_2()
 
-run_bot()
 
+run_bot()

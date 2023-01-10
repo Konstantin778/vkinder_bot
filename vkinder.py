@@ -79,7 +79,7 @@ class Vkinder:
         }
         try:
             response = requests.get(f"{self.base_url}/method/photos.get",
-                            params={**self.general_params(), **params}).json()["response"]["items"], owner_id
+                            params={**self.general_params(), **params}).json()["response"]["items"]
         except vk_api.exceptions.ApiError:
             pass
         except KeyError:
@@ -91,7 +91,8 @@ class Vkinder:
                 return response
             else:
                 print("get_photos() function has returned None object")
-                pass
+                return []
+        return []
 
 
 vk_client = Vkinder(token=token, api_version="5.131")
